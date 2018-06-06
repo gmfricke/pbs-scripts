@@ -1,0 +1,39 @@
+#!/bin/bash
+## University of New Mexico Center for Advanced Research Computing
+## Matthew Fricke, June 6th, 2018
+## Templated Torque script for running prokka.
+## Usage e.g: qsub -v GENOME_SET=Lima_67 prokka_wheeler.pbs   
+## Relies on the input data being in data/genomes/
+
+# Torque (PBS) directives "#PBS" start here:  
+#PBS -l nodes=2:ppn=8
+#PBS -l walltime=24:00:00
+#PBS -N prokka_lima_67
+
+## Send email updates 
+#PBS -m abe
+#PBS -M mfricke@carc.unm.edu
+
+module load anaconda3
+source activate wheeler_pangenome_py3
+
+cd $PBS_O_WORKDIR
+
+GENOME_SET=Lima_67
+
+INPUT_DIR=$PBS_O_WORKDIR/data/genomes/$GENOME_SET
+OUTPUT_DIR=$PBS_O_WORKDIR/data/prokka/$GENOME_SET
+
+# Make sure the output dir exists
+mkdir -p $OUTPUT_DIR
+
+# Search for all fna genome files and use gnu parallel to farm out the 
+# prokka analysis to the cluster and store the results in data/prokka/
+# {} is each of the input files found by the "find" command
+# {/.} is the filename without its extention used to label the output files
+# --force allows prokka to overwrite existing output
+# --load 100% keeps parallel from scheduling jobs when the CPU load is too high 
+find $INPUT_DIR -name '*.fna' | parallel --sshloginfile $PBS_NODEFILE --env PATH --workdir $PBS_O_WORKDIR --jobs 2 --load 100% "prokka --kingdom Bacteria --genus Mycobacterium --outdir $OUTPUT_DIR --force --prefix {/.} {}"
+
+echo finished jobs at $(date)
+
